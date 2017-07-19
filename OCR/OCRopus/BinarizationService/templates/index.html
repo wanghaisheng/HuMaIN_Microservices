@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="description" content="OCR binarization micro-service: convert the source image from grayscale to black and white." />
+        <meta name="author" content="Jingchao Luan" />
+        <title>OCR Binarization Micro-Service</title>
+        <style type="text/css">
+            p {margin-left: 30px;}
+            table {margin-left: 30px;}
+            .two_tab {margin-left: 60px;}
+            #center {text-align: center;}
+        </style>
+    </head>
+    <body>
+        <h2 align="center">OCR Binarization Micro-Service</h2>
+        <br>
+        <h4>GOAL</h4>
+        <p>Convert the source image from grayscale to black and white.</p>
+        
+        <h4>USAGE</h4>
+        <p>1. Call OCR binarization micro-service with url: "http://10.5.146.92:8001/binarizationapi".</p>
+        <p>2. Input:</p>
+        <p class="two_tab"> 
+            1) The path of the origial image(s), and upload image(s) in form style. <br>
+            2) Optional. Specified parameter valuses which are listed in the following part, and send them in form style.</p>
+        <p>3. Output: </p>
+        <p class="two_tab"> A zip file containing all output files related to original image(s). Usually they are named as {<i>imagename</i>}.bin.png and {<i>imagename</i>}.nrm.png</p>
+        <p>4. E.g. curl -F "<font color="red">image</font>=@<i>path_to_image1</i>" -F "<font color="red">image</font>=@<i>path_to_image2</i>" -F "<font color="red">threshold</font>=0.5" -o <i>name_of_output_file</i> http://10.5.146.92:8001/binarizationapi</p>
+        
+        <h4>PARAMETERS (#11)</h4>
+        <table border="1" cellspacing="0" >
+            <tr bgcolor="silver">
+                <th>Parameter</th>
+                <th>Type</th>
+                <th>Default value</th>
+                <th>Comment</th>
+            </tr>
+            <tr>
+                <td>threshold</td>
+                <td>Float</td>
+                <td align="center">0.5</td>
+                <td>threshold determines lightness</td>
+            </tr>
+            <tr>
+                <td>zoom</td>
+                <td>Float</td>
+                <td align="center">0.5</td>
+                <td>zoom for page background estimation</td>
+            </tr>
+            <tr>
+                <td>escale</td>
+                <td>Float</td>
+                <td align="center">1.0</td>
+                <td>scale for estimating a mask over the text region</td>
+            </tr>
+            <tr>
+                <td>bignore</td>
+                <td>Float</td>
+                <td align="center">0.1</td>
+                <td>ignore this much of the border for threshold estimation</td>
+            </tr>
+            <tr>
+                <td>perc</td>
+                <td>Float</td>
+                <td align="center">80.0</td>
+                <td>percentage for filters</td>
+            </tr>
+            <tr>
+                <td>range</td>
+                <td>Integer</td>
+                <td align="center">20</td>
+                <td>range for filters</td>
+            </tr>
+            <tr>
+                <td>maxskew</td>
+                <td>Float</td>
+                <td align="center">2.0</td>
+                <td>skew angle estimation parameters</td>
+            </tr>
+            <tr>
+                <td>lo</td>
+                <td>Float</td>
+                <td align="center">5.0</td>
+                <td>percentile for black estimation</td>
+            </tr>
+            <tr>
+                <td>hi</td>
+                <td>Float</td>
+                <td align="center">90.0</td>
+                <td>percentile for white estimation</td>
+            </tr>
+            <tr>
+                <td>skewsteps</td>
+                <td>Integer</td>
+                <td align="center">8</td>
+                <td>steps for skew angle estimation (per degree)</td>
+            </tr>
+            <tr>
+                <td>parallel</td>
+                <td>Integer</td>
+                <td align="center">0</td>
+                <td>number of parallel CPUs to use</td>
+            </tr>
+        </table>
+        
+        <h4><font color="red">NOTE</font></h4>
+        <p>The uploaded image variable name and specified parameters' name must be same with the parameters name in the above table.</p>
+    </body>
+</html>
