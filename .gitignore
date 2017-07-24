@@ -1,0 +1,9 @@
+*.pyc
+*~
+__pycache__
+*.sqlite3
+#*settings.py
+*env/
+*data/
+*ocrolib/
+*migrations/
