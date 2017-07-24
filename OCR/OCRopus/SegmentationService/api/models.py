@@ -2,10 +2,13 @@
 from __future__ import unicode_literals
 
 from django.db import models
+from .extrafunc import validate_image_extension
 
 ### The parameters that can be set by an service API call
 class Parameters(models.Model):
+	image = models.ImageField(upload_to='', null=True, help_text="the uploaded image need to be binarized", validators=[validate_image_extension])
 	# limits
+	minscale = models.FloatField(default=1.0, help_text="minimum scale permitted")
 	maxlines = models.IntegerField(default=300, help_text="maximum # lines permitted")
 	# scale parameters
 	scale = models.FloatField(default=0.0, help_text="the basic scale of the document (roughly, xheight) 0=automatic")
@@ -21,4 +24,4 @@ class Parameters(models.Model):
 	maxcolseps = models.IntegerField(default=3, help_text="maximum # whitespace column separators")
 	csminheight = models.FloatField(default=10.0, help_text="minimum column height (units=scale)")
 
-	parallel = models.IntegerField(default=0, help_text="number of parallel CPUs to use")
+	#parallel = models.IntegerField(default=0, help_text="number of parallel CPUs to use")
