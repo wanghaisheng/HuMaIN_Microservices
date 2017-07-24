@@ -17,19 +17,19 @@
         <h2 align="center">OCR Binarization Micro-Service</h2>
         <br>
         <h4>GOAL</h4>
-        <p>Convert the source image from grayscale to black and white.</p>
+        <p>Convert an image from grayscale to black and white.</p>
         
         <h4>USAGE</h4>
         <p>1. Call OCR binarization micro-service with url: "http://10.5.146.92:8001/binarizationapi".</p>
         <p>2. Input:</p>
         <p class="two_tab"> 
-            1) The path of the origial image(s), and upload image(s) in form style. <br>
-            2) Optional. Specified parameter valuses which are listed in the following part, and send them in form style.</p>
+            1) The path of an origial image, uploaded in form style. <br>
+            2) Optional. Specified parameter valuses which are listed in the following table, and send them in form style.</p>
         <p>3. Output: </p>
-        <p class="two_tab"> A zip file containing all output files related to original image(s). Usually they are named as {<i>imagename</i>}.bin.png and {<i>imagename</i>}.nrm.png</p>
-        <p>4. E.g. curl -F "<font color="red">image</font>=@<i>path_to_image1</i>" -F "<font color="red">image</font>=@<i>path_to_image2</i>" -F "<font color="red">threshold</font>=0.5" -o <i>name_of_output_file</i> http://10.5.146.92:8001/binarizationapi</p>
+        <p class="two_tab"> An binarized image. Usually it is named as {<i>imagename</i>}.bin.png</p>
+        <p>4. E.g. curl -F "<font color="red">image</font>=@<i>path_to_image</i>" -F "<font color="red">threshold</font>=0.5" -o <i>name_of_output_file</i> http://10.5.146.92:8001/binarizationapi</p>
         
-        <h4>PARAMETERS (#11)</h4>
+        <h4>PARAMETERS (#10)</h4>
         <table border="1" cellspacing="0" >
             <tr bgcolor="silver">
                 <th>Parameter</th>
@@ -97,15 +97,10 @@
                 <td align="center">8</td>
                 <td>steps for skew angle estimation (per degree)</td>
             </tr>
-            <tr>
-                <td>parallel</td>
-                <td>Integer</td>
-                <td align="center">0</td>
-                <td>number of parallel CPUs to use</td>
-            </tr>
         </table>
         
         <h4><font color="red">NOTE</font></h4>
-        <p>The uploaded image variable name and specified parameters' name must be same with the parameters name in the above table.</p>
+        <p> 1) The uploaded image's name/key must be 'image'.</p>
+        <p> 2) The specified parameters' name/key must be same with names listed in the above table.</p>
     </body>
 </html>

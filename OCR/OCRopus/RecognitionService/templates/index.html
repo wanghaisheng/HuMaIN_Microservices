@@ -17,19 +17,19 @@
         <h2 align="center">OCR Recognition Micro-Service</h2>
         <br>
         <h4>GOAL</h4>
-        <p>Recognize and extract line text from singal-line image(s).</p>
+        <p>Recognize and extract line text from an singal-line image.</p>
         
         <h4>USAGE</h4>
-        <p>1. Call OCR segmentation micro-service with url: "http://10.5.146.92:8003/recognitionapi".</p>
+        <p>1. Call OCR recognition micro-service with url: "http://10.5.146.92:8003/recognitionapi".</p>
         <p>2. Input: </p>
         <p class="two_tab"> 
-            1) The path of the singal-line image(s), uploaded in form style. <br>
+            1) The path of an singal-line image, uploaded in form style. <br>
             2) Optional. Specified parameter valuses which are listed in the following part, and send them in form style.</p>
         <p>3. Output: </p>
-        <p class="two_tab"> A zip file containing all output files related to original image(s). Usually they are named as {<i>imagename</i>}.txt (, {<i>imagename</i>}.prob, and {<i>imagename</i>}.llocs if related parameters have been set).</p>
-        <p>4. E.g. curl -F "<font color="red">image</font>=@<i>path_to_image1</i>" -F "<font color="red">image</font>=@<i>path_to_image2</i>" -F "<font color="red">probabilities</font>=True" -o <i>name_of_output_file</i> http://10.5.146.92:8003/recognitionapi</p>
+        <p class="two_tab"> A zip file contains all output files related to the uploaded image. Usually they are named as {<i>imagename</i>}.txt [, {<i>imagename</i>}.prob, and {<i>imagename</i>}.llocs if related parameters have been set].</p>
+        <p>4. E.g. curl -F "<font color="red">image</font>=@<i>path_to_image</i>" -F "<font color="red">probabilities</font>=True" -o <i>name_of_output_file</i> http://10.5.146.92:8003/recognitionapi</p>
         
-        <h4>PARAMETERS (#6)</h4>
+        <h4>PARAMETERS (#5)</h4>
         <table border="1" cellspacing="0" >
             <tr bgcolor="silver">
                 <th>Parameter</th>
@@ -67,17 +67,11 @@
                 <td align="center">False</td>
                 <td>output probabilities for each letter</td>
             </tr>
-            <tr>
-                <td>parallel</td>
-                <td>Integer</td>
-                <td align="center">0</td>
-                <td>number of parallel CPUs to use</td>
-            </tr>
         </table>
 
         <h4><font color="red">NOTE</font></h4>
         <p>
-            1) The uploaded image(s) must be segmented singal-line image(s).<br> 
-            2) The uploaded image variable name and specified parameters' name must be same with the parameters name in the above table.</p>
+            1) The uploaded image must be an binarized singal-line image, and with name/key 'image'.<br> 
+            2) The specified parameters' name must be same with names listed in the above table.</p>
     </body>
 </html>
