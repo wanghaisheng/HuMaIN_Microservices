@@ -40,74 +40,58 @@ from django.conf import settings
 # Get the directory which stores all input and output files
 dataDir = settings.MEDIA_ROOT
 # The directory of the default model
-modelPath = settings.BASE_DIR + "/models/en-default.pyrnn.gz"
+default_model = settings.BASE_DIR + "/models/en-default.pyrnn.gz"
 
-# 'args_default' is a constant dictionary, only store the defalut parameter values.
-# Using its deplicated variable 'args' to store the updated parameter values
+# 'args_default' only contains the parameters that cannot be set by users
 args_default = {
-    # line dewarping (usually contained in model)
-    'height':-1,        # target line height (overrides recognizer)
-
-    # recognition
-    'model':modelPath,  # line recognition model
-    'pad':16,           # extra blank padding to the left and right of text line
-    'nonormalize':False,# don't normalize the textual output from the recognizer, don't apply standard Unicode normalizations for OCR
-    'llocs':False,      # output LSTM locations for characters
-    'probabilities':False,# output probabilities for each letter
-
-    'parallel':1,        # number of parallel CPUs to use
-
-    ### The following parameters cannot be overwritten by users
-    'nocheck':False,     # disable error checking on images
-    'quiet':False      # turn off most output
+    'model':default_model, # line recognition model
+    'nocheck':False,       # disable error checking on images
+    'quiet':False          # turn off most output
 
 }
 
 # The global variable
-# Users can custom the first 10 parameters as above
 args = {}
 
 # The entry of segmentation service
 # Return the directories, each directory related to a input image and stored the segmented line images  
-def recognition_exec(images, parameters):
+def recognition_exec(image, parameters, *model):
     # Update parameters values customed by user
     # Each time update the args with the default args dictionary, avoid the effect of the previous update
     global args
     args = args_default.copy()
     args.update(parameters)
+    # if model set by user, update model using the model set by user
+    for m in model:
+        if m is not None:
+            args.update({'model': m})
     print("=====Parameters Values =====")
     print(args)
     print("============================")
 
-    if len(images)<1:
-        sys.exit(0)
+    if len(image) < 1:
+        print("ERROR: Please upload an image")
+        return None
 
     # Unicode to str
-    for i, image in enumerate(images):
-        images[i] = str(image)
+    image = str(image)
 
     # Get the line normalizer
     get_linenormalizer()
 
-    # Call process to execute recognition
-    output_lists = []
-    if args['parallel']==0:
-        for trial,fname in enumerate(images):
-            line_output_list = process((trial,fname))
-            if type(line_output_list) is list:
-                output_lists = output_lists + line_output_list
-    elif args['parallel']==1:
-        for trial,fname in enumerate(images):
-            line_output_list = safe_process((trial,fname))
-            if type(line_output_list) is list:
-                output_lists = output_lists + line_output_list
-    else:
-        pool = Pool(processes=args['parallel'])
-        result = pool.imap_unordered(safe_process,enumerate(images))
-        for line_output_list in result:
-            if type(line_output_list) is list:
-                output_lists = output_lists + line_output_list
-    return output_lists
+    # Recognize the single-line image
+    output_list = []
+    try:
+        output_list = process(image)
+    except OcropusException as e:
+        if e.trace:
+            traceback.print_exc()
+        else:
+            print_info(image+":"+e)
+    except Exception as e:
+        traceback.print_exc()
+    
+    return output_list
 
 
 def print_info(*objs):
@@ -162,11 +146,10 @@ def get_linenormalizer():
 
 
 # process one image
-def process(arg):
+def process(imagepath):
     output_list = []
-    (trial,fname) = arg
-    base,_ = ocrolib.allsplitext(fname)
-    line = ocrolib.read_image_gray(fname)
+    base,_ = ocrolib.allsplitext(imagepath)
+    line = ocrolib.read_image_gray(imagepath)
     raw_line = line.copy()
     if prod(line.shape)==0: return None
     if amax(line)==amin(line): return None
@@ -174,8 +157,8 @@ def process(arg):
     if not args['nocheck']:
         check = check_line(amax(line)-line)
         if check is not None:
-            print_error("%s SKIPPED %s (use -n to disable this check)" % (fname, check))
-            return (0,[],0,trial,fname)
+            print_error("%s SKIPPED %s (use -n to disable this check)" % (imagepath, check))
+            return (0,[],0,imagepath)
 
     temp = amax(line)-line
     temp = temp*1.0/amax(temp)
@@ -213,23 +196,9 @@ def process(arg):
         pred = ocrolib.normalize_text(pred)
 
     if not args['quiet']:
-        print_info(fname+":"+pred)
+        print_info(imagepath+":"+pred)
     output_text = base+".txt"
     ocrolib.write_text(output_text,pred)
     output_list.append(output_text)
 
     return output_list
-
-def safe_process(arg):
-    trial,fname = arg
-    try:
-        return process(arg)
-    except IOError as e:
-        if ocrolib.trace: traceback.print_exc()
-        print_info(fname+":"+e)
-    except ocrolib.OcropusException as e:
-        if e.trace: traceback.print_exc()
-        print_info(fname+":"+e)
-    except:
-        traceback.print_exc()
-        return None
