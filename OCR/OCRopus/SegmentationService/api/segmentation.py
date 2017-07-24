@@ -46,78 +46,52 @@ from ocrolib.exceptions import OcropusException
 from ocrolib.toplevel import *
 
 
-# The default parameters values
-# Users can custom the first 11 parameters
+# 'args_default' only contains the parameters that cannot be set by users
 args_default = {
-    # limits
-    'maxlines':300,  # maximum # lines permitted
-
-    # scale parameters
-    'scale':0.0,     # the basic scale of the document (roughly, xheight) 0=automatic
-    'hscale':1.0,    # non-standard scaling of horizontal parameters
-    'vscale':1.0,    # non-standard scaling of vertical parameters
-
-    # line parameters
-    'threshold':0.2, # baseline threshold
-    'noise':8,       # noise threshold for removing small components from lines
-    'usegause':False,# use gaussian instead of uniform
-
-    # column separator parameters
-    'maxseps':0,     # maximum # black column separators
-    'sepwiden':10,   # widen black separators (to account for warping)
-    'maxcolseps':3,  # maximum # whitespace column separators
-    'csminheight':10.0,# minimum column height (units=scale)
-
-    'parallel':0,    # number of parallel CPUs to use
-
-    ### The following parameters needn't be overwritten by users
-    # limits
-    'minscale':1.0,  # minimum scale permitted
     # output parameters
     'pad':3,         # adding for extracted lines
     'expand':3,      # expand mask for grayscale extraction
     # other parameters
     'nocheck':True,  # disable error checking on inputs
-    'quiet':False,   # be less verbose, usally use with parallel together
+    'quiet':False,   # be less verbose
     'debug':False
 }
 
+# The global variable
 args = {}
 
 # The entry of segmentation service
 # Return the directories, each directory related to a input image and stored the segmented line images  
-def segmentation_exec(images, parameters):
+def segmentation_exec(image, parameters):
     # Update parameters values customed by user
     # Each time update the args with the default args dictionary, avoid the effect of the previous update
     global args
     args = args_default.copy()
     args.update(parameters)
-    print("==========")
+    print("=====Parameters Values =====")
     print(args)
+    print("============================")
 
-    if len(images)<1:
-        sys.exit(0)
+    if len(image) < 1:
+        print("ERROR: Please upload an image")
+        return None
 
     # Unicode to str
-    for i, image in enumerate(images):
-        images[i] = str(image)
+    image = str(image)
 
-    if args['parallel']>1:
-        args['quiet'] = True
-
-    output_dirs = []
-    if args['parallel']<2:
-        for i,imagepath in enumerate(images):
-            if args['parallel']==1: print_info(imagepath)
-            output_dir = safe_process((imagepath,i+1))
-            output_dirs.append(output_dir)
-    else:
-        pool = Pool(processes=args['parallel'])
-        jobs = []
-        for i,imagepath in enumerate(images): jobs += [(imagepath,i+1)]
-        result = pool.map(process,jobs)
+    # Segment the image
+    output_list = []
+    try:
+        output_list = process(image)
+    except OcropusException as e:
+        if e.trace:
+            traceback.print_exc()
+        else:
+            print_info(image+":"+e)
+    except Exception as e:
+        traceback.print_exc()
     
-    return output_dirs
+    return output_list
 
 
 def norm_max(v):
@@ -341,8 +315,7 @@ def compute_segmentation(binary,scale):
 ### Processing each file.
 ################################################################
 
-def process(job):
-    imagepath,i = job
+def process(imagepath):
     global base
     base,_ = ocrolib.allsplitext(imagepath)
     outputdir = base
@@ -352,7 +325,7 @@ def process(job):
         binary = ocrolib.read_image_binary(imagepath)
     except IOError:
         if ocrolib.trace: traceback.print_exc()
-        print_error("cannot open either %s.bin.png or %s" % (base, imagepath))
+        print_error("cannot open %s" % (imagepath))
         return
 
     checktype(binary,ABINARY2)
@@ -378,7 +351,6 @@ def process(job):
         return
 
     # find columns and text lines
-
     if not args['quiet']: print_info("computing segmentation")
     segmentation = compute_segmentation(binary,scale)
     if amax(segmentation)>args['maxlines']:
@@ -387,14 +359,12 @@ def process(job):
     if not args['quiet']: print_info("number of lines %g" % amax(segmentation))
 
     # compute the reading order
-
     if not args['quiet']: print_info("finding reading order")
     lines = psegutils.compute_lines(segmentation,scale)
     order = psegutils.reading_order([l.bounds for l in lines])
     lsort = psegutils.topsort(order)
 
     # renumber the labels so that they conform to the specs
-
     nlabels = amax(segmentation)+1
     renumber = zeros(nlabels,'i')
     for i,v in enumerate(lsort): renumber[lines[v].label] = 0x010000+(i+1)
@@ -407,23 +377,14 @@ def process(job):
     lines = [lines[i] for i in lsort]
     ocrolib.write_page_segmentation("%s.pseg.png"%outputdir,segmentation)
     cleaned = ocrolib.remove_noise(binary,args['noise'])
+
+    # write into output list
+    output_list = []
+    outputpath_base = os.path.join(outputdir,imagename_base)
     for i,l in enumerate(lines):
         binline = psegutils.extract_masked(1-cleaned,l,pad=args['pad'],expand=args['expand'])
-        ocrolib.write_image_binary("%s/%s_01%04x.bin.png"%(outputdir,imagename_base,i+1),binline)
+        output_line = outputpath_base + "_%d.bin.png" % (i+1)
+        ocrolib.write_image_binary(output_line, binline)
+        output_list.append(output_line)
     print_info("%6d  %s %4.1f %d" % (i, imagepath,  scale,  len(lines)))
-    return outputdir
-
-
-def safe_process(job):
-    imagepath,i = job
-    outputdir = None
-    try:
-        outputdir = process(job)
-    except OcropusException as e:
-        if e.trace:
-            traceback.print_exc()
-        else:
-            print_info(imagepath+":"+e)
-    except Exception as e:
-        traceback.print_exc()
-    return outputdir
+    return output_list
