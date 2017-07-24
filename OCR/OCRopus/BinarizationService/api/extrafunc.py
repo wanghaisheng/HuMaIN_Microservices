@@ -1,15 +1,23 @@
 # -*- coding: utf-8 -*-
 from PIL import Image
 from resizeimage import resizeimage # Used for image resize
+from django.core.exceptions import ValidationError
 import sys, os, os.path, shutil
 
 '''
-This module rpovides extra functions: resize image
-and delete all of the data generated during process.
+This module rpovides extra functions
 '''
 
-# Resize the image size to meet the smallest size requirment of binarization: 600*600 pixels
-# Resize by adding a white backgroud border, but not to strech the original image
+### Check the validation of the uploaded images
+def validate_image_extension(value):
+    ext = os.path.splitext(value.name)[1]  # [0] returns path+filename
+    valid_extensions = ['.png', '.jpg', '.jpeg']
+    if not ext.lower() in valid_extensions:
+        raise ValidationError(u'Unsupported file extension.')
+
+
+### Resize the image size to meet the smallest size requirment of binarization: 600*600 pixels
+### Resize by adding a white backgroud border, but not to strech the original image
 def resize_image(imagepath):
     fd_img = open(imagepath, 'r')
     img = Image.open(fd_img)
@@ -25,7 +33,7 @@ def resize_image(imagepath):
         pass
 
 
-# Delete all files related to this service time, including inputs and outputs
+### Delete all files related to this service time, including inputs and outputs
 def del_service_files(dataDir):
     for the_file in os.listdir(dataDir):
         file_path = os.path.join(dataDir, the_file)
