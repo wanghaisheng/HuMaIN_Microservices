@@ -30,39 +30,16 @@ import multiprocessing
 import ocrolib
 
 
-"""
-Image binarization using non-linear processing.
-This is a compute-intensive binarization method that works on degraded
-and historical book pages.
-"""
-
-
-# 'args_default' is a constant dictionary, only store the defalut parameter values.
-# Using its deplicated variable 'args' to store the updated parameter values
+# 'args_default' only contains the parameters that cannot be set by users
 args_default = {
-### The following parameters can be overwritten by users
-'threshold':0.5, # threshold, determines lightness
-'zoom':0.5,      # zoom for page background estimation
-'escale':1.0,    # scale for estimating a mask over the text region
-'bignore':0.1,   # ignore this much of the border for threshold estimation
-'perc':80.0,     # percentage for filters
-'range':20,      # range for filters
-'maxskew':2.0,   # skew angle estimation parameters
-'lo':5.0,        # percentile for black estimation
-'hi':90.0,       # percentile for white estimation
-'skewsteps':8,   # steps for skew angle estimation (per degree)
-'parallel':0,    # number of parallel CPUs to use
-
-### The following parameters needn't be overwritten by users
 'nocheck':True  # disable error checking on inputs
 }
 
 # The global variable
-# Users can custom the first 10 parameters as above
 args = {}
 
 # The entry of binarization service
-def binarization_exec(images, parameters):
+def binarization_exec(image, parameters):
     # Update parameters values customed by user
     # Each time update the args with the default args dictionary, avoid the effect of the previous update
     global args
@@ -72,27 +49,20 @@ def binarization_exec(images, parameters):
     print(args)
     print("============================")
     
-    if len(images)<1:
-        sys.exit(0)
+    if len(image) < 1:
+        print("ERROR: Please upload an image")
+        return None
 
     # Unicode to str
-    for i, image in enumerate(images):
-        images[i] = str(image)
+    image = str(image)
 
-    output_files = []
+    # Binarize the image
+    try:
+        output_file = process(image)
+    except:
+        output_file = None
 
-    if args['parallel']<2:
-        for i,f in enumerate(images):
-            output_file = process((f,i+1))
-            output_files.append(output_file)
-    else:
-        pool = multiprocessing.Pool(processes=args['parallel'])
-        jobs = []
-        for i,f in enumerate(images): jobs += [(f,i+1)]
-        result = pool.map(process, jobs)
-        for output_list in result:
-            output_files = output_files + output_list
-    return output_files
+    return output_file
     
 
 def print_info(*objs):
@@ -125,30 +95,27 @@ def W(s): return s[1].stop-s[1].start
 def A(s): return W(s)*H(s)
 
 
-
-def process(job):
-    fname,i = job
-    print_info("# %s" % (fname))
-    if args['parallel']<2: print_info("=== %s %-3d" % (fname, i))
-    raw = ocrolib.read_image_gray(fname)
+def process(imagepath):
+    print_info("# %s" % (imagepath))
+    raw = ocrolib.read_image_gray(imagepath)
 
     # perform image normalization
     image = raw-amin(raw)
     if amax(image)==amin(image):
-        print_info("# image is empty: %s" % (fname))
+        print_info("# image is empty: %s" % (imagepath))
         return
     image /= amax(image)
 
     if not args['nocheck']:
         check = check_page(amax(image)-image)
         if check is not None:
-            print_error(fname+"SKIPPED"+check+"(use -n to disable this check)")
+            print_error(imagepath+"SKIPPED"+check+"(use -n to disable this check)")
             return
 
     # flatten the image by estimating the local whitelevel
     comment = ""
     # if not, we need to flatten it by estimating the local whitelevel
-    if args['parallel']<2: print_info("flattening")
+    print_info("flattening")
     m = interpolation.zoom(image,args['zoom'])
     m = filters.percentile_filter(m,args['perc'],size=(args['range'],2))
     m = filters.percentile_filter(m,args['perc'],size=(2,args['range']))
@@ -158,7 +125,7 @@ def process(job):
 
     # estimate skew angle and rotate
     if args['maxskew']>0:
-        if args['parallel']<2: print_info("estimating skew angle")
+        print_info("estimating skew angle")
         d0,d1 = flat.shape
         o0,o1 = int(args['bignore']*d0),int(args['bignore']*d1)
         flat = amax(flat)-flat
@@ -173,7 +140,7 @@ def process(job):
         angle = 0
 
     # estimate low and high thresholds
-    if args['parallel']<2: print_info("estimating thresholds")
+    print_info("estimating thresholds")
     d0,d1 = flat.shape
     o0,o1 = int(args['bignore']*d0),int(args['bignore']*d1)
     est = flat[o0:d0-o0,o1:d1-o1]
@@ -191,16 +158,16 @@ def process(job):
     lo = stats.scoreatpercentile(est.ravel(),args['lo'])
     hi = stats.scoreatpercentile(est.ravel(),args['hi'])
     # rescale the image to get the gray scale image
-    if args['parallel']<2: print_info("rescaling")
+    print_info("rescaling")
     flat -= lo
     flat /= (hi-lo)
     flat = clip(flat,0,1)
     bin = 1*(flat>args['threshold'])
 
-    # output the normalized grayscale and the thresholded images
-    print_info("%s lo-hi (%.2f %.2f) angle %4.1f %s" % (fname, lo, hi, angle, comment))
-    if args['parallel']<2: print_info("writing")
-    base,_ = ocrolib.allsplitext(fname)
+    # output the normalized grayscale and the thresholded image
+    print_info("%s lo-hi (%.2f %.2f) angle %4.1f %s" % (imagepath, lo, hi, angle, comment))
+    print_info("writing")
+    base,_ = ocrolib.allsplitext(imagepath)
     outputfile_bin = base+".bin.png"
     #outputfile_nrm = base+".nrm.png"
     #output_files = [outputfile_bin, outputfile_nrm]
