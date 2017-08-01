@@ -45,7 +45,7 @@ default_model = settings.BASE_DIR + "/models/en-default.pyrnn.gz"
 # 'args_default' only contains the parameters that cannot be set by users
 args_default = {
     'model':default_model, # line recognition model
-    'nocheck':False,       # disable error checking on images
+    'nocheck':True,        # disable error checking on images
     'quiet':False          # turn off most output
 
 }
