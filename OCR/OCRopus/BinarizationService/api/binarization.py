@@ -28,6 +28,8 @@ from scipy.ndimage import filters, interpolation, morphology, measurements
 from scipy import stats
 import multiprocessing
 import ocrolib
+import StringIO, PIL, numpy
+from numpy import amax, amin
 
 
 # 'args_default' only contains the parameters that cannot be set by users
@@ -54,7 +56,7 @@ def binarization_exec(image, parameters):
         return None
 
     # Unicode to str
-    image = str(image)
+    #image = str(image)
 
     # Binarize the image
     try:
@@ -95,9 +97,23 @@ def W(s): return s[1].stop-s[1].start
 def A(s): return W(s)*H(s)
 
 
+def array2pil(a):
+    if a.dtype==dtype("B"):
+        if a.ndim==2:
+            return PIL.Image.frombytes("L",(a.shape[1],a.shape[0]),a.tostring())
+        elif a.ndim==3:
+            return PIL.Image.frombytes("RGB",(a.shape[1],a.shape[0]),a.tostring())
+        else:
+            raise OcropusException("bad image rank")
+    elif a.dtype==dtype('float32'):
+        return PIL.Image.fromstring("F",(a.shape[1],a.shape[0]),a.tostring())
+    else:
+        raise Exception("unknown image type")
+
+
 def process(imagepath):
     print_info("# %s" % (imagepath))
-    raw = ocrolib.read_image_gray(imagepath)
+    raw = ocrolib.read_image_gray(imagepath) # stuck much time here, and the reason is @check on ocrlib.read_image_gray()
 
     # perform image normalization
     image = raw-amin(raw)
@@ -164,14 +180,23 @@ def process(imagepath):
     flat = clip(flat,0,1)
     bin = 1*(flat>args['threshold'])
 
+    
     # output the normalized grayscale and the thresholded image
     print_info("%s lo-hi (%.2f %.2f) angle %4.1f %s" % (imagepath, lo, hi, angle, comment))
     print_info("writing")
+
+    """
+    ### Return image file (write to disk firstly)
     base,_ = ocrolib.allsplitext(imagepath)
     outputfile_bin = base+".bin.png"
-    #outputfile_nrm = base+".nrm.png"
-    #output_files = [outputfile_bin, outputfile_nrm]
     ocrolib.write_image_binary(outputfile_bin, bin)
-    #ocrolib.write_image_gray(outputfile_nrm, flat)
-    #return output_files
     return outputfile_bin
+    """
+    
+    ### Return image object (in memory)
+    assert bin.ndim==2
+    midrange = 0.5*(amin(bin)+amax(bin))
+    image_array = array(255*(bin>midrange),'B') # wrong if call "ocrlib.midrange()"
+    image_pil = array2pil(image_array)  # wrong if call "ocrlib.array2pil()"
+    return image_pil
+    

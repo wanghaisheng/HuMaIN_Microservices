@@ -33,8 +33,8 @@ from .models import Parameters
 from .binarization import binarization_exec
 from .extrafunc import resize_image, del_service_files
 from .serializers import ParameterSerializer
-import sys, os, os.path, zipfile, StringIO
-
+import sys, os, os.path
+import time
 
 # Set encoding
 reload(sys)
@@ -47,9 +47,60 @@ dataDir = settings.MEDIA_ROOT
 def index(request):
     return render(request, 'index.html')
 
+### New version: process image in-memory => response output image from memory
 @csrf_exempt
 @api_view(['GET', 'POST'])
 def binarizationView(request, format=None):
+    receive_req = time.time()
+    if request.data.get('image') is None:
+        return Response("ERROR: Please upload an image", status=status.HTTP_400_BAD_REQUEST)
+
+    ### Receive parameters with model serializer
+    paras_serializer = ParameterSerializer(data=request.data)
+    if paras_serializer.is_valid():
+        paras_serializer.save()
+    else:
+        return Response(paras_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    image_object = request.FILES['image']
+    
+    ### Resize the image if its size smaller than 600*600
+    #try:
+    #    resize_image(image_object)
+    #except:
+    #    Parameters.objects.filter(id=paras_serializer.data['id']).delete()
+    #   return Response("ERROR: Re-size image error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+ 
+    ### Call OCR binarization function
+    bin_begin = time.time()
+    output_file = binarization_exec(image_object, paras_serializer.data)
+    bin_end = time.time()
+    if output_file is None:
+        Parameters.objects.filter(id=paras_serializer.data['id']).delete()
+        return Response("ERROR: sth wrong with binarization", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    ### Return image object (in memory)
+    response = HttpResponse(content_type="image/png")
+    output_file.save(response, "PNG")
+
+    ### Delete parameters object in DB
+    Parameters.objects.filter(id=paras_serializer.data['id']).delete()
+
+
+    send_resp = time.time()
+    print("*** Before bin: %.4f ***" % (bin_begin-receive_req))
+    print("*** Bin: %.4f ***" % (bin_end-bin_begin))
+    print("*** After bin: %.4f ***" % (send_resp-bin_end))
+    print("*** Service time: %.4f ***" % (send_resp-receive_req))
+    return response
+
+"""
+### Old version: save image to disk => process image from disk => save output to disk => response output image => delete disk images
+@csrf_exempt
+@api_view(['GET', 'POST'])
+def binarizationView(request, format=None):
+    receive_req = time.time()
     if request.data.get('image') is None:
         #return HttpResponse(content='Please upload an image', status=400)
         return Response("ERROR: Please upload an image", status=status.HTTP_400_BAD_REQUEST)
@@ -63,15 +114,17 @@ def binarizationView(request, format=None):
 
     ### Resize the image if its size smaller than 600*600
     imagepath = projectDir + paras_serializer.data['image']
-    try:
-        resize_image(imagepath)
-    except:
-        Parameters.objects.filter(id=paras_serializer.data['id']).delete()
-        del_service_files(dataDir)
-        return Response("ERROR: Re-size image error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #try:
+    #    resize_image(imagepath)
+    #except:
+    #    Parameters.objects.filter(id=paras_serializer.data['id']).delete()
+    #    del_service_files(dataDir)
+    #    return Response("ERROR: Re-size image error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
  
     ### Call OCR binarization function
+    bin_begin = time.time()
     output_file = binarization_exec(imagepath, paras_serializer.data)
+    bin_end = time.time()
     if output_file is None:
         Parameters.objects.filter(id=paras_serializer.data['id']).delete()
         del_service_files(dataDir)
@@ -88,4 +141,11 @@ def binarizationView(request, format=None):
     # Delete files in local storage
     del_service_files(dataDir)
 
+
+    send_resp = time.time()
+    print("*** Before bin: %.4f ***" % (bin_begin-receive_req))
+    print("*** Bin: %.4f ***" % (bin_end-bin_begin))
+    print("*** After bin: %.4f ***" % (send_resp-bin_end))
+    print("*** Service time: %.4f ***" % (send_resp-receive_req))
     return response
+"""
