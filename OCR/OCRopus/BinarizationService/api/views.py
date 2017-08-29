@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ##########################################################################################
-# Developer: Luan,Jingchao        Project: HuMaIN (http://humain.acis.ula.ve)
+# Developer: Luan,Jingchao        Project: HuMaIN (http://humain.acis.ufl.edu)
 # Description: 
 #     Receive OCRopus binarization service requests from user, call binarization function 
 # and get the output, and then return the output or error info to user.

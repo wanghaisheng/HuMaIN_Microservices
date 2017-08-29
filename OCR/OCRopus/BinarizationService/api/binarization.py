@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##########################################################################################
-# Developer: Luan,Jingchao        Project: HuMaIN (http://humain.acis.ula.ve)
+# Developer: Luan,Jingchao        Project: HuMaIN (http://humain.acis.ufl.edu)
 # Description: 
 #     Convert a image from grayscale to black and white, based on the default parameters or
 # parameters set by user.
