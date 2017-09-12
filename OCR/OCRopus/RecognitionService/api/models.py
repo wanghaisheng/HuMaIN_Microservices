@@ -8,7 +8,7 @@ from .extrafunc import validate_image_extension
 
 ### The parameters that can be set by an service API call
 class Parameters(models.Model):
-	image = models.ImageField(upload_to='', null=True, help_text="the uploaded image need to be binarized", validators=[validate_image_extension])
+	#image = models.ImageField(upload_to='', null=True, help_text="the uploaded image need to be binarized", validators=[validate_image_extension])
 	# line dewarping (usually contained in model)
 	height = models.IntegerField(default=-1, help_text="target line height (overrides recognizer)")
     # recognition

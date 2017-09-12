@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ##########################################################################################
-# Developer: Luan,Jingchao        Project: HuMaIN (http://humain.acis.ula.ve)
+# Developer: Luan,Jingchao        Project: HuMaIN (http://humain.acis.ufl.edu)
 # Description: 
 #     Receive OCRopus recognition service requests from user, call recognition function and
 # get the output, and then return the output or error info to user.
@@ -36,7 +36,8 @@ from .serializers import ParameterSerializer
 from .recognition import recognition_exec
 from .extrafunc import del_service_files
 import sys, os, os.path, zipfile, StringIO, glob
-
+import time
+import logging
 
 # Get the directory which stores all input and output files
 projectDir = settings.BASE_DIR
@@ -48,8 +49,10 @@ def index(request):
 @csrf_exempt
 @api_view(['GET', 'POST'])
 def recognitionView(request, format=None):
+    receive_req = time.time()
+    logger = logging.getLogger('django')
     if request.data.get('image') is None:
-        #return HttpResponse(content='Please upload an image', status=400)
+        logger.error("Please upload only one image")
         return Response("ERROR: Please upload an image", status=status.HTTP_400_BAD_REQUEST)
 
     ### Receive image and parameters with model serializer
@@ -57,10 +60,12 @@ def recognitionView(request, format=None):
     if paras_serializer.is_valid():
         paras_serializer.save()
     else:
+        logger.error(paras_serializer.errors)
         return Response(paras_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 	
+    image_object = request.FILES['image']
     ### Call OCR recognition function
-    imagepath = projectDir + paras_serializer.data['image']
+    #imagepath = projectDir + paras_serializer.data['image']
     # Seperately receive model set by user
     modelpath = None
     if request.data.get('model') is not None: 
@@ -68,15 +73,23 @@ def recognitionView(request, format=None):
         model = request.data.get('model')
         modelpath = dataDir+"/"+str(model)
         default_storage.save(modelpath, model)
-    outputfiles = recognition_exec(imagepath, paras_serializer.data, modelpath)
+    #
+    recog_begin = time.time()
+    outputfiles = recognition_exec(image_object, paras_serializer.data, modelpath)
+    recog_end = time.time()
     if not outputfiles: # if outputfiles is emplty
         Parameters.objects.filter(id=paras_serializer.data['id']).delete()
         del_service_files(dataDir)
+        logger.error("sth wrong with recognition")
         return Response("ERROR: sth wrong with segmentation", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # Return the multiple files in zip type
+    ### Return the multiple files in zip type
     # Folder name in ZIP archive which contains the above files
-    zip_dir = "output_recognition"
+    #image = os.path.basename(paras_serializer.data['image'])
+    #image_name, image_ext = os.path.splitext(image)
+    #zip_dir = image_name + "_recog"
+    imagename_base, ext = os.path.splitext(str(image_object))
+    zip_dir = imagename_base+"_seg"
     zip_filename = "%s.zip" % zip_dir
     # Open StringIO to grab in-memory ZIP contents
     strio = StringIO.StringIO()
@@ -96,8 +109,16 @@ def recognitionView(request, format=None):
     # And correct content-disposition
     response["Content-Disposition"] = 'attachment; filename=%s' % zip_filename
 
-    # Delete all files related to this service time
+    # Delete all files related to this service
     Parameters.objects.filter(id=paras_serializer.data['id']).delete()
     del_service_files(dataDir)
 
+    send_resp = time.time()
+    logger.info("===== Image %s =====" % str(image_object))
+    logger.info("*** Before recog: %.2fs ***" % (recog_begin-receive_req))
+    logger.info("*** Recog: %.2fs ***" % (recog_end-recog_begin))
+    logger.info("*** After recog: %.2fs ***" % (send_resp-recog_end))
+    logger.info("*** Service time: %.2fs ***" % (send_resp-receive_req))
+
+    #return response
     return response

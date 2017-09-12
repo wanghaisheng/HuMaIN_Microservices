@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##########################################################################################
-# Developer: Luan,Jingchao        Project: HuMaIN (http://humain.acis.ula.ve)
+# Developer: Luan,Jingchao        Project: HuMaIN (http://humain.acis.ufl.edu)
 # Description: 
 #     Recognize and extract line text from a singal-line image, based on the default
 # parameters or parameters set by user.
@@ -35,6 +35,7 @@ from collections import Counter
 from ocrolib import lstm
 from scipy.ndimage import measurements
 from django.conf import settings
+import logging
 
 
 # Get the directory which stores all input and output files
@@ -52,6 +53,7 @@ args_default = {
 
 # The global variable
 args = {}
+logger = logging.getLogger('django')
 
 # The entry of segmentation service
 # Return the directories, each directory related to a input image and stored the segmented line images  
@@ -65,16 +67,16 @@ def recognition_exec(image, parameters, *model):
     for m in model:
         if m is not None:
             args.update({'model': m})
-    print("=====Parameters Values =====")
-    print(args)
-    print("============================")
+    #print("=====Parameters Values =====")
+    #print(args)
+    #print("============================")
 
     if len(image) < 1:
         print("ERROR: Please upload an image")
         return None
 
     # Unicode to str
-    image = str(image)
+    #image = str(image)
 
     # Get the line normalizer
     get_linenormalizer()
@@ -87,7 +89,7 @@ def recognition_exec(image, parameters, *model):
         if e.trace:
             traceback.print_exc()
         else:
-            print_info(image+":"+e)
+            logger.info(image+": "+e)
     except Exception as e:
         traceback.print_exc()
     
@@ -97,7 +99,7 @@ def recognition_exec(image, parameters, *model):
 def print_info(*objs):
     print("INFO: ", *objs, file=sys.stdout)
 
-def print_error(*objs):
+def peint_error(*objs):
     print("ERROR: ", *objs, file=sys.stderr)
 
 def check_line(image):
@@ -129,11 +131,11 @@ def get_linenormalizer():
             if isinstance(x,lstm.LSTM):
                 x.allocate(5000)
     except FileNotFound:
-        print_error("")
-        print_error("Cannot find OCR model file:" + args['model'])
-        print_error("Download a model and put it into:" + ocrolib.default.modeldir)
-        print_error("(Or override the location with OCROPUS_DATA.)")
-        print_error("")
+        logger.error("")
+        logger.error("Cannot find OCR model file:" + args['model'])
+        logger.error("Download a model and put it into:" + ocrolib.default.modeldir)
+        logger.error("(Or override the location with OCROPUS_DATA.)")
+        logger.error("")
         sys.exit(1)
 
     # get the line normalizer from the loaded network, or optionally
@@ -146,10 +148,13 @@ def get_linenormalizer():
 
 
 # process one image
-def process(imagepath):
+def process(image):
     output_list = []
-    base,_ = ocrolib.allsplitext(imagepath)
-    line = ocrolib.read_image_gray(imagepath)
+    imagename_base, ext = os.path.splitext(str(image))
+    outputpath_base = os.path.join(dataDir, imagename_base)
+    #base,_ = ocrolib.allsplitext(image)
+
+    line = ocrolib.read_image_gray(image)
     raw_line = line.copy()
     if prod(line.shape)==0: return None
     if amax(line)==amin(line): return None
@@ -157,8 +162,8 @@ def process(imagepath):
     if not args['nocheck']:
         check = check_line(amax(line)-line)
         if check is not None:
-            print_error("%s SKIPPED %s (use -n to disable this check)" % (imagepath, check))
-            return (0,[],0,imagepath)
+            logger.error("%s SKIPPED %s (use -n to disable this check)" % (image, check))
+            return (0,[],0,image)
 
     temp = amax(line)-line
     temp = temp*1.0/amax(temp)
@@ -172,7 +177,7 @@ def process(imagepath):
         # output recognized LSTM locations of characters
         result = lstm.translate_back(network.outputs,pos=1)
         scale = len(raw_line.T)*1.0/(len(network.outputs)-2*args['pad'])
-        output_llocs = base+".llocs"
+        output_llocs = outputpath_base+".llocs"
         with codecs.open(output_llocs,"w","utf-8") as locs:
             for r,c in result:
                 c = network.l2s([c])
@@ -185,7 +190,7 @@ def process(imagepath):
     if args['probabilities']:
         # output character probabilities
         result = lstm.translate_back(network.outputs,pos=2)
-        output_prob = base+".prob"
+        output_prob = outputpath_base+".prob"
         with codecs.open(output_prob,"w","utf-8") as file:
             for c,p in result:
                 c = network.l2s([c])
@@ -196,8 +201,8 @@ def process(imagepath):
         pred = ocrolib.normalize_text(pred)
 
     if not args['quiet']:
-        print_info(imagepath+":"+pred)
-    output_text = base+".txt"
+        logger.info(str(image)+": "+pred)
+    output_text = outputpath_base+".txt"
     ocrolib.write_text(output_text,pred)
     output_list.append(output_text)
 
