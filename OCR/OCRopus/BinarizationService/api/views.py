@@ -35,6 +35,7 @@ from .extrafunc import resize_image, del_service_files
 from .serializers import ParameterSerializer
 import sys, os, os.path
 import time
+import logging
 
 # Set encoding
 reload(sys)
@@ -52,14 +53,17 @@ def index(request):
 @api_view(['GET', 'POST'])
 def binarizationView(request, format=None):
     receive_req = time.time()
+    logger = logging.getLogger('django')
     if request.data.get('image') is None:
-        return Response("ERROR: Please upload an image", status=status.HTTP_400_BAD_REQUEST)
+        logger.error("Please upload only one image")
+        return Response("ERROR: Please upload only one image", status=status.HTTP_400_BAD_REQUEST)
 
     ### Receive parameters with model serializer
     paras_serializer = ParameterSerializer(data=request.data)
     if paras_serializer.is_valid():
         paras_serializer.save()
     else:
+        logger.error(paras_serializer.errors)
         return Response(paras_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     image_object = request.FILES['image']
@@ -78,6 +82,7 @@ def binarizationView(request, format=None):
     bin_end = time.time()
     if output_file is None:
         Parameters.objects.filter(id=paras_serializer.data['id']).delete()
+        logger.error("sth wrong with binarization")
         return Response("ERROR: sth wrong with binarization", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     ### Return image object (in memory)
@@ -87,13 +92,14 @@ def binarizationView(request, format=None):
     ### Delete parameters object in DB
     Parameters.objects.filter(id=paras_serializer.data['id']).delete()
 
-
     send_resp = time.time()
-    print("*** Before bin: %.4f ***" % (bin_begin-receive_req))
-    print("*** Bin: %.4f ***" % (bin_end-bin_begin))
-    print("*** After bin: %.4f ***" % (send_resp-bin_end))
-    print("*** Service time: %.4f ***" % (send_resp-receive_req))
+    logger.info("===== Image %s =====" % str(image_object))
+    logger.info("*** Before bin: %.2fs ***" % (bin_begin-receive_req))
+    logger.info("*** Bin: %.2fs ***" % (bin_end-bin_begin))
+    logger.info("*** After bin: %.2fs ***" % (send_resp-bin_end))
+    logger.info("*** Service time: %.2fs ***" % (send_resp-receive_req))
     return response
+
 
 """
 ### Old version: save image to disk => process image from disk => save output to disk => response output image => delete disk images

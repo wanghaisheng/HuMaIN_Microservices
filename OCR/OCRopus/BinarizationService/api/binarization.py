@@ -30,6 +30,7 @@ import multiprocessing
 import ocrolib
 import StringIO, PIL, numpy
 from numpy import amax, amin
+import logging
 
 
 # 'args_default' only contains the parameters that cannot be set by users
@@ -39,6 +40,7 @@ args_default = {
 
 # The global variable
 args = {}
+logger = logging.getLogger('django')
 
 # The entry of binarization service
 def binarization_exec(image, parameters):
@@ -112,26 +114,26 @@ def array2pil(a):
 
 
 def process(imagepath):
-    print_info("# %s" % (imagepath))
+    logger.info("# %s" % (imagepath))
     raw = ocrolib.read_image_gray(imagepath) # stuck much time here, and the reason is @check on ocrlib.read_image_gray()
 
     # perform image normalization
     image = raw-amin(raw)
     if amax(image)==amin(image):
-        print_info("# image is empty: %s" % (imagepath))
+        logger.info("# image is empty: %s" % (imagepath))
         return
     image /= amax(image)
 
     if not args['nocheck']:
         check = check_page(amax(image)-image)
         if check is not None:
-            print_error(imagepath+"SKIPPED"+check+"(use -n to disable this check)")
+            logger.error(imagepath+"SKIPPED"+check+"(use -n to disable this check)")
             return
 
     # flatten the image by estimating the local whitelevel
     comment = ""
     # if not, we need to flatten it by estimating the local whitelevel
-    print_info("flattening")
+    logger.info("flattening")
     m = interpolation.zoom(image,args['zoom'])
     m = filters.percentile_filter(m,args['perc'],size=(args['range'],2))
     m = filters.percentile_filter(m,args['perc'],size=(2,args['range']))
@@ -141,7 +143,7 @@ def process(imagepath):
 
     # estimate skew angle and rotate
     if args['maxskew']>0:
-        print_info("estimating skew angle")
+        logger.info("estimating skew angle")
         d0,d1 = flat.shape
         o0,o1 = int(args['bignore']*d0),int(args['bignore']*d1)
         flat = amax(flat)-flat
@@ -156,7 +158,7 @@ def process(imagepath):
         angle = 0
 
     # estimate low and high thresholds
-    print_info("estimating thresholds")
+    logger.info("estimating thresholds")
     d0,d1 = flat.shape
     o0,o1 = int(args['bignore']*d0),int(args['bignore']*d1)
     est = flat[o0:d0-o0,o1:d1-o1]
@@ -174,7 +176,7 @@ def process(imagepath):
     lo = stats.scoreatpercentile(est.ravel(),args['lo'])
     hi = stats.scoreatpercentile(est.ravel(),args['hi'])
     # rescale the image to get the gray scale image
-    print_info("rescaling")
+    logger.info("rescaling")
     flat -= lo
     flat /= (hi-lo)
     flat = clip(flat,0,1)
@@ -182,8 +184,8 @@ def process(imagepath):
 
     
     # output the normalized grayscale and the thresholded image
-    print_info("%s lo-hi (%.2f %.2f) angle %4.1f %s" % (imagepath, lo, hi, angle, comment))
-    print_info("writing")
+    logger.info("%s lo-hi (%.2f %.2f) angle %4.1f %s" % (imagepath, lo, hi, angle, comment))
+    logger.info("writing")
 
     """
     ### Return image file (write to disk firstly)
