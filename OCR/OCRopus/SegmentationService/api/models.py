@@ -6,7 +6,7 @@ from .extrafunc import validate_image_extension
 
 ### The parameters that can be set by an service API call
 class Parameters(models.Model):
-	image = models.ImageField(upload_to='', null=True, help_text="the uploaded image need to be binarized", validators=[validate_image_extension])
+	#image = models.ImageField(upload_to='', null=True, help_text="the uploaded image need to be binarized", validators=[validate_image_extension])
 	# limits
 	minscale = models.FloatField(default=1.0, help_text="minimum scale permitted")
 	maxlines = models.IntegerField(default=300, help_text="maximum # lines permitted")
@@ -19,7 +19,7 @@ class Parameters(models.Model):
 	noise = models.IntegerField(default=8, help_text="noise threshold for removing small components from lines")
 	usegause = models.BooleanField(default=False, help_text="use gaussian instead of uniform")
 	# column separator parameters
-	maxseps = models.IntegerField(default=2, help_text="maximum # black column separators")
+	maxseps = models.IntegerField(default=0, help_text="maximum # black column separators")
 	sepwiden = models.IntegerField(default=10, help_text="widen black separators (to account for warping)")
 	maxcolseps = models.IntegerField(default=3, help_text="maximum # whitespace column separators")
 	csminheight = models.FloatField(default=10.0, help_text="minimum column height (units=scale)")

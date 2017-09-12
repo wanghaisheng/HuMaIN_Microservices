@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##########################################################################################
-# Developer: Luan,Jingchao        Project: HuMaIN (http://humain.acis.ula.ve)
+# Developer: Luan,Jingchao        Project: HuMaIN (http://humain.acis.ufl.edu)
 # Description: 
 #     Extract the individual line images from a binarized image, based on the default 
 # parameters or parameters set by user.
@@ -44,8 +44,11 @@ import ocrolib
 from ocrolib import psegutils,morph,sl
 from ocrolib.exceptions import OcropusException
 from ocrolib.toplevel import *
+from numpy import amax, amin
+from django.conf import settings
+import logging
 
-
+dataDir = settings.MEDIA_ROOT
 # 'args_default' only contains the parameters that cannot be set by users
 args_default = {
     # output parameters
@@ -59,6 +62,7 @@ args_default = {
 
 # The global variable
 args = {}
+logger = logging.getLogger('django')
 
 # The entry of segmentation service
 # Return the directories, each directory related to a input image and stored the segmented line images  
@@ -77,7 +81,7 @@ def segmentation_exec(image, parameters):
         return None
 
     # Unicode to str
-    image = str(image)
+    #image = str(image)
 
     # Segment the image
     output_list = []
@@ -87,7 +91,7 @@ def segmentation_exec(image, parameters):
         if e.trace:
             traceback.print_exc()
         else:
-            print_info(image+":"+e)
+            logger.info(image+":"+e)
     except Exception as e:
         traceback.print_exc()
     
@@ -129,7 +133,7 @@ def DSAVE(title,image):
         assert len(image)==3
         image = transpose(array(image),[1,2,0])
     fname = "_"+title+".png"
-    print_info("debug " + fname)
+    logger.info("debug " + fname)
     imsave(fname,image)
 
 
@@ -199,11 +203,11 @@ def compute_colseps_conv(binary,scale=1.0):
 
 def compute_colseps(binary,scale):
     """Computes column separators either from vertical black lines or whitespace."""
-    print_info("considering at most %g whitespace column separators" % args['maxcolseps'])
+    logger.info("considering at most %g whitespace column separators" % args['maxcolseps'])
     colseps = compute_colseps_conv(binary,scale)
     DSAVE("colwsseps",0.7*colseps+0.3*binary)
     
-    print_info("considering at most %g black column separators" % args['maxseps'])
+    logger.info("considering at most %g black column separators" % args['maxseps'])
     seps = compute_separators_morph(binary,scale)
     DSAVE("colseps",0.7*seps+0.3*binary)
     colseps = maximum(colseps,seps)
@@ -290,20 +294,20 @@ def compute_segmentation(binary,scale):
     binary = remove_hlines(binary,scale)
 
     # do the column finding
-    if not args['quiet']: print_info("computing column separators")
+    if not args['quiet']: logger.info("computing column separators")
     colseps,binary = compute_colseps(binary,scale)
 
     # now compute the text line seeds
-    if not args['quiet']: print_info("computing lines")
+    if not args['quiet']: logger.info("computing lines")
     bottom,top,boxmap = compute_gradmaps(binary,scale)
     seeds = compute_line_seeds(binary,bottom,top,colseps,scale)
     DSAVE("seeds",[bottom,top,boxmap])
 
     # spread the text line seeds to all the remaining
     # components
-    if not args['quiet']: print_info("propagating labels")
+    if not args['quiet']: logger.info("propagating labels")
     llabels = morph.propagate_labels(boxmap,seeds,conflict=0)
-    if not args['quiet']: print_info("spreading labels")
+    if not args['quiet']: logger.info("spreading labels")
     spread = morph.spread_labels(seeds,maxdist=scale)
     llabels = where(llabels>0,llabels,spread*binary)
     segmentation = llabels*binary
@@ -315,17 +319,15 @@ def compute_segmentation(binary,scale):
 ### Processing each file.
 ################################################################
 
-def process(imagepath):
-    global base
-    base,_ = ocrolib.allsplitext(imagepath)
-    outputdir = base
-    imagename_base = os.path.basename(os.path.normpath(base))
+def process(image):
+    imagename_base, ext = os.path.splitext(str(image))
+    outputdir = os.path.join(dataDir, imagename_base)
 
     try:
-        binary = ocrolib.read_image_binary(imagepath)
+        binary = ocrolib.read_image_binary(image)
     except IOError:
         if ocrolib.trace: traceback.print_exc()
-        print_error("cannot open %s" % (imagepath))
+        logger.error("cannot open %s" % (image))
         return
 
     checktype(binary,ABINARY2)
@@ -333,7 +335,7 @@ def process(imagepath):
     if not args['nocheck']:
         check = check_page(amax(binary)-binary)
         if check is not None:
-            print_error("%s SKIPPED %s (use -n to disable this check)" % (imagepath, check))
+            logger.error("%s SKIPPED %s (use -n to disable this check)" % (image, check))
             return
 
     binary = 1-binary # invert
@@ -342,24 +344,24 @@ def process(imagepath):
         scale = psegutils.estimate_scale(binary)
     else:
         scale = args['scale']
-    print_info("scale %f" % (scale))
+    logger.info("scale %f" % (scale))
     if isnan(scale) or scale>1000.0:
-        print_error("%s: bad scale (%g); skipping\n" % (imagepath, scale))
+        logger.error("%s: bad scale (%g); skipping\n" % (image, scale))
         return
     if scale<args['minscale']:
-        print_error("%s: scale (%g) less than --minscale; skipping\n" % (imagepath, scale))
+        logger.error("%s: scale (%g) less than --minscale; skipping\n" % (image, scale))
         return
 
     # find columns and text lines
-    if not args['quiet']: print_info("computing segmentation")
+    if not args['quiet']: logger.info("computing segmentation")
     segmentation = compute_segmentation(binary,scale)
     if amax(segmentation)>args['maxlines']:
-        print_error("%s: too many lines %g" % (imagepath, amax(segmentation)))
+        logger.error("%s: too many lines %g" % (image, amax(segmentation)))
         return
-    if not args['quiet']: print_info("number of lines %g" % amax(segmentation))
+    if not args['quiet']: logger.info("number of lines %g" % amax(segmentation))
 
     # compute the reading order
-    if not args['quiet']: print_info("finding reading order")
+    if not args['quiet']: logger.info("finding reading order")
     lines = psegutils.compute_lines(segmentation,scale)
     order = psegutils.reading_order([l.bounds for l in lines])
     lsort = psegutils.topsort(order)
@@ -371,13 +373,14 @@ def process(imagepath):
     segmentation = renumber[segmentation]
 
     # finally, output everything
-    if not args['quiet']: print_info("writing lines")
+    if not args['quiet']: logger.info("writing lines")
     if not os.path.exists(outputdir):
         os.mkdir(outputdir)
     lines = [lines[i] for i in lsort]
-    ocrolib.write_page_segmentation("%s.pseg.png"%outputdir,segmentation)
+    #ocrolib.write_page_segmentation("%s.pseg.png"%outputdir,segmentation)
     cleaned = ocrolib.remove_noise(binary,args['noise'])
 
+    ### Return image files list (in disk)
     # write into output list
     output_list = []
     outputpath_base = os.path.join(outputdir,imagename_base)
@@ -386,5 +389,21 @@ def process(imagepath):
         output_line = outputpath_base + "_%d.bin.png" % (i+1)
         ocrolib.write_image_binary(output_line, binline)
         output_list.append(output_line)
-    print_info("%6d  %s %4.1f %d" % (i, imagepath,  scale,  len(lines)))
+    logger.info("%6d  %s %4.1f %d" % (i, image,  scale,  len(lines)))
     return output_list
+    """
+
+    ### Return image objects dictionary (in memory)
+    output_dic = {}  # key: line NO. value: single-line image object
+    for index, line in enumerate(lines):
+        binline = psegutils.extract_masked(1-cleaned,line,pad=args['pad'],expand=args['expand'])
+        assert binline.ndim==2
+        midrange = 0.5*(amin(binline)+amax(binline))
+        image_array = array(255*(binline>midrange),'B')
+        image_pil = ocrolib.array2pil(image_array)
+        output_dic[index] = image_pil
+    logger.info("%6d  %s %4.1f %d" % (i, image,  scale,  len(lines)))
+    print("=== dic ===")
+    print(output_dic)
+    return output_dic
+    """
