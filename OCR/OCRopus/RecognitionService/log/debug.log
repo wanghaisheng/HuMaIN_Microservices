@@ -1,7 +1,0 @@
-INFO 2017-09-12 18:50:58,103 recognition NY01075760_lg.bin_1.bin.png:The New ''ork BSe,mnical Sarden
-INFO 2017-09-12 18:50:58,179 views ===== Image NY01075760_lg.bin_1.bin.png =====
-INFO 2017-09-12 18:50:58,179 views *** Before recog: 0.06s ***
-INFO 2017-09-12 18:50:58,180 views *** Recog: 3.80s ***
-INFO 2017-09-12 18:50:58,180 views *** After recog: 0.07s ***
-INFO 2017-09-12 18:50:58,180 views *** Service time: 3.93s ***
-INFO 2017-09-12 18:50:58,181 basehttp "GET /recognitionapi HTTP/1.1" 200 240
