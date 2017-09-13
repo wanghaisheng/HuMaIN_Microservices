@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ##########################################################################################
-# Developer: Luan,Jingchao        Project: HuMaIN (http://humain.acis.ula.ve)
+# Developer: Luan,Jingchao        Project: HuMaIN (http://humain.acis.ufl.edu)
 # Description: 
 #	Given the segmented (single-line) images' directory to variable 'imageDir', the script 
 # will call OCR recognition microservice for each image file in the directory
@@ -25,76 +25,103 @@
 import requests, zipfile, StringIO
 import time, argparse, os, sys, subprocess
 
+start_time = time.time()
+
+### The server IP and PORT in lab ACIS deploying HuMaIN OCRopus microservices (Only accessable for ACIS members)
+### Please Replace with your server IP when testing
+IP = "10.5.146.92"
+PORT = "8003"
+
+### Transfer string to boolean
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
 ### Validation and receive parameters
-def valid_and_receive_args():
-	parser = argparse.ArgumentParser("Call OCRopy Recognition Service")
+parser = argparse.ArgumentParser("Call OCRopy Recognition Service")
 
-	parser.add_argument('image')
-	parser.add_argument('-o','--output',default=None,help="output directory, without the last slash")
-	parser.add_argument('-m','--model',default=None, help="line recognition model")
-	parser.add_argument("-l","--height",default=-1,type=int, help="target line height (overrides recognizer)")
-	parser.add_argument("-p","--pad",default=16,type=int, help="extra blank padding to the left and right of text line")
-	parser.add_argument('-N',"--nonormalize",action="store_true", help="don't normalize the textual output from the recognizer")
-	parser.add_argument('--llocs',action="store_true", help="output LSTM locations for characters")
-	parser.add_argument('--probabilities',action="store_true",help="output probabilities for each letter")
+parser.add_argument('image', help="The path of a image file, or a folder containing all pre-process images.")
+parser.add_argument('-o','--output',default=None,help="output directory, without the last slash")
+parser.add_argument('-m','--model',default=argparse.SUPPRESS, help="line recognition model")
+parser.add_argument("-l","--height",default=argparse.SUPPRESS,type=int, help="target line height (overrides recognizer)")
+parser.add_argument("-p","--pad",default=argparse.SUPPRESS,type=int, help="extra blank padding to the left and right of text line")
+parser.add_argument('-N',"--nonormalize", type=str2bool, help="don't normalize the textual output from the recognizer")
+parser.add_argument('--llocs', type=str2bool, help="output LSTM locations for characters")
+parser.add_argument('--probabilities', type=str2bool, help="output probabilities for each letter")
 
-	args = parser.parse_args()
+args = parser.parse_args()
 
-	### The existence of the source image is verified
-	if not os.path.isfile(args.image):
-		parser.print_help()
-		sys.exit(0)
-
-	### The existence of the destination folder is verified or created
-	if args.output is not None:
+### The existence of the destination folder is verified or created
+if args.output is None:
+	# If output folder is not set, save output image to current directory
+	args.output = os.getcwd()
+else:
+	if not os.path.isdir(args.output):
+		subprocess.call(["mkdir -p " + args.output], shell=True)
 		if not os.path.isdir(args.output):
-			subprocess.call(["mkdir -p " + args.output], shell=True)
-			if not os.path.isdir(args.output):
-				print("Error: Destination folder %s could not be created" % (args.output))
-				sys.exit(0)
+			print("Error: Destination folder %s could not be created" % (args.output))
+			sys.exit(0)
 
-	return vars(args)
+args = vars(args)
 
 
 ### Call recognition service
 def call_recog(imagepath, dstDir, parameters):
-	url_recog = 'http://10.5.146.92:8003/recognitionapi'
+	url_recog = "http://" + IP + ":" + PORT + "/recognitionapi"
 
 	# Uploaded iamges
 	multiple_files = [('image', (imagepath, open(imagepath, 'rb')))]
-	if parameters['model'] is not None:
+	if 'model' in parameters.keys():
 		multiple_files.append(('model', (parameters['model'], open(parameters['model'], 'rb'))))
-	del parameters['model']
+		del parameters['model']
 	# Call recognition service and get response
+	iamge_dir, image_name = os.path.split(imagepath)
+	call_begin = time.time()
 	resp = requests.get(url_recog, files=multiple_files, data=parameters)
-
-	# If user didn't provide dst folder, save output to current directory
-	if dstDir is None:
-		dstDir = os.getcwd()
+	print("*** Recognition service time: %.2f seconds***" % (time.time()-call_begin))
 
 	# Unpress the zip file responsed from recognition service
 	if resp.status_code == 200:
 		# For python 3+, replace with io.BytesIO(resp.content)
 		z = zipfile.ZipFile(StringIO.StringIO(resp.content)) 
 		z.extractall(dstDir) 
+		unzip_end = time.time()
 	else:
-		print("\nERROR code: %d" % resp.status_code)
+		print("Image %s Recognition error!" % imagepath)
 		#print(resp.content)
-
+        return
 
 if __name__ == '__main__':
-	start_time = time.time()
-	### validation and receive parameters
-	args = valid_and_receive_args()
-
-	imagepath = args['image']
+	image = args['image']
 	dstDir = args['output']
 
 	### Only keep the setable parameters
 	del args['image']
 	del args['output']
 
-	### Call recognition service
-	call_recog(imagepath, dstDir, args)
 
-	print("\n--- %s seconds ---" % (time.time() - start_time))
+	### Call recognition service
+	if os.path.isfile(image):
+		print("\n===== %s ======" % image)
+		call_recog(image, dstDir, args)
+	elif os.path.isdir(image):
+		image_list = os.listdir(image)
+		image_list.sort()
+		for image_name in image_list:
+			image_path = os.path.join(image, image_name)
+			# One image failed do not affect the process of other images
+			try:
+				print("\n===== %s =====" % image_name)
+				call_recog(image_path, dstDir, args)
+			except:
+				pass
+	else:
+		parser.print_help()
+		sys.exit(0)
+
+	print("*** Over all invoke time: %.2f seconds ***\n" % (time.time() - start_time))
