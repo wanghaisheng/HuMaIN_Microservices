@@ -26,7 +26,6 @@ from numpy.ctypeslib import ndpointer
 import os, os.path
 from scipy.ndimage import filters, interpolation, morphology, measurements
 from scipy import stats
-import multiprocessing
 import ocrolib
 import StringIO, PIL, numpy
 from numpy import amax, amin
@@ -115,7 +114,7 @@ def array2pil(a):
 
 def process(imagepath):
     logger.info("# %s" % (imagepath))
-    raw = ocrolib.read_image_gray(imagepath) # stuck much time here, and the reason is @check on ocrlib.read_image_gray()
+    raw = ocrolib.read_image_gray(imagepath) 
 
     # perform image normalization
     image = raw-amin(raw)
@@ -188,14 +187,14 @@ def process(imagepath):
     logger.info("writing")
 
     """
-    ### Return image file (write to disk firstly)
+    ### Return image file path in disk (write to disk firstly)
     base,_ = ocrolib.allsplitext(imagepath)
     outputfile_bin = base+".bin.png"
     ocrolib.write_image_binary(outputfile_bin, bin)
     return outputfile_bin
     """
     
-    ### Return image object (in memory)
+    ### Return image object directly (in memory)
     assert bin.ndim==2
     midrange = 0.5*(amin(bin)+amax(bin))
     image_array = array(255*(bin>midrange),'B') # wrong if call "ocrlib.midrange()"
