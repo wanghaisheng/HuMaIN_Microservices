@@ -79,7 +79,7 @@ def call_bin(imagepath, dstDir, parameters):
 	# Save the responsed binarized image
 	image = os.path.basename(imagepath)
 	image_name, image_ext = os.path.splitext(image)
-	dstimage = image_name + ".bin.png"
+	dstimage = image_name + "_bin.png"
 	dstpath = os.path.join(dstDir, dstimage)
 
 	if resp.status_code == 200:
