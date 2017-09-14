@@ -16,7 +16,14 @@ Reusable information extraction and data processing microservices. Based on [OCR
 	```
 	Note: Install one time under directory '/HuMaIN_Microservices/OCR/OCRopus/' for testing, or install three times under each 	microservice directory like '/HuMaIN_Microservices/OCR/OCRopus/BinarizationService/' for deployment.
 
-3. Run each microservice respectively
+3. Apply updates for each microservice
+
+	```
+	$ python manage.py makemigrations
+	$ python manage.py migrate
+	```
+	
+4. Run each microservice respectively
 
 	For Binarization microservice: (under directory '/OCR/OCRopus/BinarizationService/')
 	```
