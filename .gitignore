@@ -2,6 +2,7 @@
 *~
 __pycache__
 *.sqlite3
+*.so
 #*settings.py
 *env/
 #*data/
