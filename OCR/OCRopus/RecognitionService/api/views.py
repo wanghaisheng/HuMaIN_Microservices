@@ -40,7 +40,6 @@ import time
 import logging
 
 # Get the directory which stores all input and output files
-projectDir = settings.BASE_DIR
 dataDir = settings.MEDIA_ROOT
 
 def index(request):
@@ -64,16 +63,16 @@ def recognitionView(request, format=None):
         return Response(paras_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 	
     image_object = request.FILES['image']
-    ### Call OCR recognition function
-    #imagepath = projectDir + paras_serializer.data['image']
-    # Seperately receive model set by user
+
+    ### Seperately receive model set by user
     modelpath = None
     if request.data.get('model') is not None: 
         # model set by user
         model = request.data.get('model')
         modelpath = dataDir+"/"+str(model)
         default_storage.save(modelpath, model)
-    #
+
+    ### Call OCR recognition function
     recog_begin = time.time()
     outputfiles = recognition_exec(image_object, paras_serializer.data, modelpath)
     recog_end = time.time()
@@ -85,11 +84,8 @@ def recognitionView(request, format=None):
 
     ### Return the multiple files in zip type
     # Folder name in ZIP archive which contains the above files
-    #image = os.path.basename(paras_serializer.data['image'])
-    #image_name, image_ext = os.path.splitext(image)
-    #zip_dir = image_name + "_recog"
     imagename_base, ext = os.path.splitext(str(image_object))
-    zip_dir = imagename_base+"_seg"
+    zip_dir = imagename_base+"_recog"
     zip_filename = "%s.zip" % zip_dir
     # Open StringIO to grab in-memory ZIP contents
     strio = StringIO.StringIO()
@@ -120,5 +116,4 @@ def recognitionView(request, format=None):
     logger.info("*** After recog: %.2fs ***" % (send_resp-recog_end))
     logger.info("*** Service time: %.2fs ***" % (send_resp-receive_req))
 
-    #return response
     return response

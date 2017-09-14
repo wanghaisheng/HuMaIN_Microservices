@@ -27,6 +27,11 @@ import time, argparse, os, sys, subprocess
 
 start_time = time.time()
 
+### The server IP and PORT in lab ACIS deploying HuMaIN OCRopus microservices (Only accessable for ACIS members)
+### Please Replace with your server IP when testing
+IP = "10.5.146.92"
+PORT = "8001"
+
 ### Validation and receive parameters
 parser = argparse.ArgumentParser("Call OCRopy Binarization Service")
 
@@ -60,7 +65,7 @@ args = vars(args)
 
 
 def call_bin(imagepath, dstDir, parameters):
-	url_bin = 'http://localhost:8001/binarizationapi'
+	url_bin = "http://" + IP + ":" + PORT + "/binarizationapi"
 
 	# Uploaded iamges
 	image = {'image': open(imagepath, 'rb')}
@@ -69,12 +74,12 @@ def call_bin(imagepath, dstDir, parameters):
 	#print("*** Send request: %.4f ***" % time.time())
 	call_begin = time.time()
 	resp = requests.get(url_bin, files=image, data=parameters, stream=True)
-	print("*** Bin service time: %.4f ***" % (time.time()-call_begin))
+	print("*** Binarization service time: %.2f seconds**" % (time.time()-call_begin))
 
 	# Save the responsed binarized image
 	image = os.path.basename(imagepath)
 	image_name, image_ext = os.path.splitext(image)
-	dstimage = image_name + ".bin.png"
+	dstimage = image_name + "_bin.png"
 	dstpath = os.path.join(dstDir, dstimage)
 
 	if resp.status_code == 200:
@@ -84,6 +89,7 @@ def call_bin(imagepath, dstDir, parameters):
 	else:
 		print("Image %s Binarization error!" % imagepath)
 		#print(resp.content)
+        return
 
 
 if __name__ == '__main__':
@@ -103,7 +109,7 @@ if __name__ == '__main__':
 			image_path = os.path.join(image, image_name)
 			# One image failed do not affect the process of other images
 			try:
-				print("\n========== %s ==========" % image_name)
+				print("\n===== %s =====" % image_name)
 				call_bin(image_path, dstDir, args)
 			except:
 				pass
@@ -111,4 +117,4 @@ if __name__ == '__main__':
 		parser.print_help()
 		sys.exit(0)
 	
-	print("--- Over all invoke time: %.4f seconds ---" % (time.time() - start_time))
+	print("*** Over all invoke time: %.2f seconds ***\n" % (time.time() - start_time))

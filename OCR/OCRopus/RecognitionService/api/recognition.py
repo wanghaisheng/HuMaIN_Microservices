@@ -82,9 +82,9 @@ def recognition_exec(image, parameters, *model):
     get_linenormalizer()
 
     # Recognize the single-line image
-    output_list = []
+    recog_list = []
     try:
-        output_list = process(image)
+        recog_list = process(image)
     except OcropusException as e:
         if e.trace:
             traceback.print_exc()
@@ -93,7 +93,7 @@ def recognition_exec(image, parameters, *model):
     except Exception as e:
         traceback.print_exc()
     
-    return output_list
+    return recog_list
 
 
 def print_info(*objs):
@@ -149,7 +149,7 @@ def get_linenormalizer():
 
 # process one image
 def process(image):
-    output_list = []
+    recog_list = []
     imagename_base, ext = os.path.splitext(str(image))
     outputpath_base = os.path.join(dataDir, imagename_base)
     #base,_ = ocrolib.allsplitext(image)
@@ -177,33 +177,33 @@ def process(image):
         # output recognized LSTM locations of characters
         result = lstm.translate_back(network.outputs,pos=1)
         scale = len(raw_line.T)*1.0/(len(network.outputs)-2*args['pad'])
-        output_llocs = outputpath_base+".llocs"
+        recog_llocs = outputpath_base+".llocs"
         with codecs.open(output_llocs,"w","utf-8") as locs:
             for r,c in result:
                 c = network.l2s([c])
                 r = (r-args['pad'])*scale
                 locs.write("%s\t%.1f\n"%(c,r))
-            output_list.append(output_llocs)
+            recog_list.append(recog_llocs)
                 #plot([r,r],[0,20],'r' if c==" " else 'b')
         #ginput(1,1000)
 
     if args['probabilities']:
         # output character probabilities
         result = lstm.translate_back(network.outputs,pos=2)
-        output_prob = outputpath_base+".prob"
-        with codecs.open(output_prob,"w","utf-8") as file:
+        recog_prob = outputpath_base+".prob"
+        with codecs.open(recog_prob,"w","utf-8") as file:
             for c,p in result:
                 c = network.l2s([c])
                 file.write("%s\t%s\n"%(c,p))
-            output_list.append(output_prob)
+            recog_list.append(recog_prob)
 
     if not args['nonormalize']:
         pred = ocrolib.normalize_text(pred)
 
     if not args['quiet']:
         logger.info(str(image)+": "+pred)
-    output_text = outputpath_base+".txt"
-    ocrolib.write_text(output_text,pred)
-    output_list.append(output_text)
+    recog_text = outputpath_base+".txt"
+    ocrolib.write_text(recog_text,pred)
+    recog_list.append(recog_text)
 
-    return output_list
+    return recog_list
