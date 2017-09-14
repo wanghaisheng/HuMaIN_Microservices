@@ -12,7 +12,7 @@ Reusable information extraction and data processing microservices. Based on [OCR
 2. Install requirement packages
 	
 	```
-	$ python manage.py runserver 0.0.0.0:8001
+	$ pip install -r requirements.txt
 	```
 	Note: Install one time under directory '/HuMaIN_Microservices/OCR/OCRopus/' for testing, or install three times under each 	microservice directory like '/HuMaIN_Microservices/OCR/OCRopus/BinarizationService/' for deployment.
 
