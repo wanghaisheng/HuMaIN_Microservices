@@ -386,7 +386,7 @@ def process(image):
     outputpath_base = os.path.join(outputdir,imagename_base)
     for i,l in enumerate(lines):
         binline = psegutils.extract_masked(1-cleaned,l,pad=args['pad'],expand=args['expand'])
-        output_line = outputpath_base + "_%d.bin.png" % (i+1)
+        output_line = outputpath_base + "_%d.png" % (i+1)
         ocrolib.write_image_binary(output_line, binline)
         output_list.append(output_line)
     logger.info("%6d  %s %4.1f %d" % (i, image,  scale,  len(lines)))
