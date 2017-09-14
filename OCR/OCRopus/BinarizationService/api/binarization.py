@@ -189,7 +189,7 @@ def process(imagepath):
     """
     ### Return image file path in disk (write to disk firstly)
     base,_ = ocrolib.allsplitext(imagepath)
-    outputfile_bin = base+".bin.png"
+    outputfile_bin = base+"_bin.png"
     ocrolib.write_image_binary(outputfile_bin, bin)
     return outputfile_bin
     """
