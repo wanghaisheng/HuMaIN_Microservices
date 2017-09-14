@@ -85,7 +85,7 @@ def recognitionView(request, format=None):
     ### Return the multiple files in zip type
     # Folder name in ZIP archive which contains the above files
     imagename_base, ext = os.path.splitext(str(image_object))
-    zip_dir = imagename_base+"_seg"
+    zip_dir = imagename_base+"_recog"
     zip_filename = "%s.zip" % zip_dir
     # Open StringIO to grab in-memory ZIP contents
     strio = StringIO.StringIO()
